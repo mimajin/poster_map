@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>選挙掲示板チェック（CSV直読）</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #map { height: 90vh; }
+    #status { padding: 10px; background:#f5f5f5; font-size:16px; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="status">読み込み中…</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<script>
+  /* 地図初期化 */
+  const map = L.map('map').setView([35.62, 139.73], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+    .addTo(map);
+
+  /* アイコン */
+  const icons = {
+    undone: L.icon({
+      iconUrl: "https://maps.gstatic.com/mapfiles/ms2/micons/blue.png",
+      iconSize: [32, 32]
+    }),
+    done: L.icon({
+      iconUrl: "https://maps.gstatic.com/mapfiles/ms2/micons/green.png",
+      iconSize: [32, 32]
+    })
+  };
+
+  /* 状態保存（掲示場番号をIDとして使用） */
+  const doneState =
+    JSON.parse(localStorage.getItem("posterDone") || "{}");
+
+  function updateStatus(data) {
+    const remaining = data.filter(
+      d => !doneState[d.掲示場番号]
+    ).length;
+
+    document.getElementById("status").textContent =
+      `未実施：${remaining} 箇所 ／ 全 ${data.length} 箇所`;
+  }
+
+  /* CSV読込 */
+  Papa.parse("掲示板_緯度経度.csv", {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+
+      const data = results.data.map(d => ({
+        掲示場番号: d["掲示場番号"]?.trim(),
+        住所: d["住所"]?.trim(),
+        設置場所: d["設置場所"]?.trim(),
+        緯度: Number(d["緯度"]),
+        経度: Number(d["経度"])
+      }))
+      .filter(d => !isNaN(d.緯度) && !isNaN(d.経度));
+
+      console.log("読み込み件数:", data.length);
+      console.log(data[0]);
+
+      data.forEach(place => {
+
+        const marker = L.marker(
+          [place.緯度, place.経度],
+          { icon: doneState[place.掲示場番号] ? icons.done : icons.undone }
+        ).addTo(map);
+
+        marker.bindPopup(
+          `<strong>${place.設置場所}</strong><br>
+           ${place.住所}<br>
+           掲示場番号：${place.掲示場番号}`
+        );
+
+        marker.on("click", () => {
+          doneState[place.掲示場番号] =
+            !doneState[place.掲示場番号];
+
+          localStorage.setItem(
+            "posterDone",
+            JSON.stringify(doneState)
+          );
+
+          marker.setIcon(
+            doneState[place.掲示場番号] ? icons.done : icons.undone
+          );
+
+          updateStatus(data);
+        });
+      });
+
+      updateStatus(data);
+    }
+  });
+</script>
+
+</body>
+</html>
