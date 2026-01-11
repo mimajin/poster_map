@@ -24,60 +24,66 @@
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
     .addTo(map);
 
-/* =====================
-   現在地表示（GPS）
-===================== */
-let currentMarker = null;
-let currentCircle = null;
+  /* =====================
+     現在地表示（GPS）
+  ===================== */
+  let currentMarker = null;
+  let currentCircle = null;
 
-function showCurrentLocation() {
-  if (!navigator.geolocation) {
-    alert("この端末では位置情報が使えません");
-    return;
+  function showCurrentLocation() {
+    if (!navigator.geolocation) {
+      alert("この端末では位置情報が使えません");
+      return;
+    }
+
+    navigator.geolocation.watchPosition(
+      position => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+
+        // 初回 or 更新
+        if (!currentMarker) {
+          currentMarker = L.circleMarker([lat, lng], {
+            radius: 8,
+            color: "#0066ff",
+            fillColor: "#0066ff",
+            fillOpacity: 0.9
+          }).addTo(map);
+
+          currentCircle = L.circle([lat, lng], {
+            radius: accuracy,
+            color: "#0066ff",
+            fillColor: "#0066ff",
+            fillOpacity: 0.1
+          }).addTo(map);
+
+          map.setView([lat, lng], 16);
+        } else {
+          currentMarker.setLatLng([lat, lng]);
+          currentCircle.setLatLng([lat, lng]);
+          currentCircle.setRadius(accuracy);
+        }
+      },
+      error => {
+        alert("位置情報を取得できませんでした");
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 10000
+      }
+    );
   }
 
-  navigator.geolocation.watchPosition(
-    position => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const accuracy = position.coords.accuracy;
+  // 起動
+  showCurrentLocation();
 
-      // 初回 or 更新
-      if (!currentMarker) {
-        currentMarker = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: "#0066ff",
-          fillColor: "#0066ff",
-          fillOpacity: 0.9
-        }).addTo(map);
+  <button onclick="map.locate({setView:true,maxZoom:17})"
+          style="position:absolute;top:10px;right:10px;z-index:1000;">
+    現在地へ
+  </button>
 
-        currentCircle = L.circle([lat, lng], {
-          radius: accuracy,
-          color: "#0066ff",
-          fillColor: "#0066ff",
-          fillOpacity: 0.1
-        }).addTo(map);
-
-        map.setView([lat, lng], 16);
-      } else {
-        currentMarker.setLatLng([lat, lng]);
-        currentCircle.setLatLng([lat, lng]);
-        currentCircle.setRadius(accuracy);
-      }
-    },
-    error => {
-      alert("位置情報を取得できませんでした");
-    },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 10000,
-      timeout: 10000
-    }
-  );
-}
-
-// 起動
-showCurrentLocation();
 
 
   /* アイコン */
